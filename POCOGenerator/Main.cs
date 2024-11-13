@@ -131,6 +131,13 @@ namespace POCOGenerator
 					var content = new ResultContent { Dock = DockStyle.Fill };
 					content.Initiate(resultItem);
 					tabPage.Controls.Add(content);
+
+					var mappingTabPage = new TabPage { Text = resultItem.EntityMapName, Margin = new Padding(0) };
+					tabResult.TabPages.Add(mappingTabPage);
+
+					var mappingContent = new ResultContent { Dock = DockStyle.Fill };
+					mappingContent.InitiateMapping(resultItem);
+					mappingTabPage.Controls.Add(mappingContent);
 				}
 			}
 			catch (Exception ex)

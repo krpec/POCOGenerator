@@ -43,6 +43,7 @@ namespace POCOGenerator.DomainServices
             ParseTables(connectionString, sql, procedureEntityNames);
             ParseColumns();
             GenerateCode();
+            GenerateMappingCode();
         }
 
         public static List<string> GetTableNames(string connectionString)
@@ -99,7 +100,7 @@ namespace POCOGenerator.DomainServices
                         for (var i = 0; i < content.Tables.Count; i++)
                         {
                             var table = content.Tables[i];
-                            var resultItem = new ResultItem { SchemaTable = dr.GetSchemaTable(), DataTable = table, EntityName = GetEntityName(sql, i, table.TableName, procedureEntityNames) };
+                            var resultItem = new ResultItem { SchemaTable = dr.GetSchemaTable(), DataTable = table, EntityName = GetEntityName(sql, i, table.TableName, procedureEntityNames), EntityMapName = $"{GetEntityName(sql, i, table.TableName, procedureEntityNames)}Map" };
                             ResultItems.Add(resultItem);
                             dr.NextResult();
                         }
@@ -174,6 +175,60 @@ namespace POCOGenerator.DomainServices
 
                 resultItem.Code = sb.ToString();
             }
+        }
+
+        private void GenerateMappingCode()
+        {
+            foreach (var resultItem in ResultItems)
+            {
+                var sb = new StringBuilder();
+                sb.AppendLine(string.Format("public class {0}Map : IEntityTypeConfiguration<{0}>", resultItem.EntityName));
+                sb.AppendLine("{");
+                sb.AppendLine($"    public void Configure(EntityTypeBuilder<{resultItem.EntityName}> builder)");
+                sb.AppendLine("    {");
+
+                //primary key
+                if (resultItem.DataTable.PrimaryKey.Length > 1)
+                {
+                    var pkSb = new StringBuilder();
+                    pkSb.Append("        builder.HasKey(t => new { ");
+
+                    foreach (DataColumn pk in resultItem.DataTable.PrimaryKey)
+                    {
+                        pkSb.Append($"t.{pk.ColumnName}, ");
+                    }
+
+                    pkSb.Length -= 2;
+
+                    pkSb.Append(" });");
+
+                    sb.AppendLine(pkSb.ToString());
+                }
+                else if (resultItem.DataTable.PrimaryKey.Length == 1)
+                    sb.AppendLine($"        builder.HasKey(t => t.{resultItem.DataTable.PrimaryKey[0].ColumnName});");
+
+                //string limits
+                foreach (var sqlColumn in resultItem.SqlColumns)
+                {
+                    if (sqlColumn.DataType == "System.String")
+                        sb.AppendLine($"        builder.Property(t => t.{sqlColumn.ColumnName}).HasMaxLength({sqlColumn.ColumnSize});");
+                }
+
+                //to table
+                sb.AppendLine("");
+                sb.AppendLine($"        builder.ToTable(\"{resultItem.EntityName}\")");
+
+                foreach (var sqlColumn in resultItem.SqlColumns)
+                {
+                    sb.AppendLine($"        builder.Property(t => t.{sqlColumn.ColumnName}).HasColumnName(\"{sqlColumn.ColumnName}\");");
+                }
+
+                sb.AppendLine("    }");
+				sb.AppendLine("}");
+				sb.AppendLine("");
+
+				resultItem.MappingCode = sb.ToString();
+			}
         }
 
         private static string GetNullableDataType(SqlColumn sqlColumn)

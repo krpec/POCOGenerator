@@ -18,6 +18,13 @@ namespace POCOGenerator.Controls
 			txtCode.Text = resultItem.Code;
 		}
 
+		public void InitiateMapping(ResultItem resultItem)
+		{
+			sqlColumnBindingSource.DataSource = resultItem.SqlColumns;
+			grdData.DataSource = resultItem.DataTable;
+			txtCode.Text = resultItem.MappingCode;
+		}
+
 		private void txtCode_KeyDown(object sender, KeyEventArgs e)
 		{
 			if (e.Control && e.KeyCode == Keys.A)
